@@ -60,7 +60,9 @@ def send_message(bot, message):
 
 def get_api_answer(timestamp):
     """Отправим запрос к API-домашка."""
-    timestamp = int(time.time())
+    class CustomError(Exception):
+        """Применим кастомные исключения."""
+
     payload = {'from_date': timestamp}
     try:
         response = requests.get(url=ENDPOINT, headers=HEADERS, params=payload)
@@ -72,7 +74,7 @@ def get_api_answer(timestamp):
         else:
             return response.json()
     except requests.RequestException as error:
-        raise Exception(f'Возникла ошибка - {error}')
+        raise CustomError(f'Возникла ошибка - {error}')
 
 
 def check_response(response):
@@ -94,6 +96,9 @@ def parse_status(homework):
     """Извлекаем информацию о конкретной.
     домашней работе, статус этой работы.
     """
+    class CustomError(Exception):
+        """Применим кастомные исключения."""
+
     if 'homework_name' not in homework:
         raise KeyError('Отсутствует ключ: homework_name')
     if 'status' not in homework:
@@ -102,7 +107,7 @@ def parse_status(homework):
     homework_status = homework['status']
     if homework_status not in HOMEWORK_VERDICTS:
         logger.error('Cтатус проверки задания не изменился')
-        raise Exception('Некорректный статус проверки задания')
+        raise CustomError('Некорректный статус проверки задания')
     verdict = HOMEWORK_VERDICTS[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
@@ -113,17 +118,12 @@ def main():
         logger.critical('Отсутствуют обязательные переменные окружения')
         sys.exit()
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    timestamp = int(time.time())
-    response = get_api_answer(timestamp)
-    if 'current_date' in response:
-        current_time = response.get('current_date')
-    else:
-        raise KeyError('Отсутствует обязательный ключ current_date')
+    timestamp = 0
     old_message = ''
 
     while True:
         try:
-            response = get_api_answer(current_time)
+            response = get_api_answer(timestamp)
             homeworks = check_response(response)
             homework = homeworks[0]
             message = parse_status(homework)
