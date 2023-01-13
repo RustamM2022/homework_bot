@@ -7,6 +7,8 @@ import os
 import telegram
 from dotenv import load_dotenv
 
+from exceptions import IncorrectstatusError, RequestError
+
 load_dotenv()
 
 
@@ -28,7 +30,6 @@ ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 
 logging.basicConfig(
     level=logging.DEBUG,
-    filename='program.log',
     format='%(asctime)s, %(levelname)s, %(message)s, %(name)s'
 )
 logger = logging.getLogger(__name__)
@@ -60,9 +61,6 @@ def send_message(bot, message):
 
 def get_api_answer(timestamp):
     """Отправим запрос к API-домашка."""
-    class CustomError(Exception):
-        """Применим кастомные исключения."""
-
     payload = {'from_date': timestamp}
     try:
         response = requests.get(url=ENDPOINT, headers=HEADERS, params=payload)
@@ -74,7 +72,7 @@ def get_api_answer(timestamp):
         else:
             return response.json()
     except requests.RequestException as error:
-        raise CustomError(f'Возникла ошибка - {error}')
+        raise RequestError(f'Возникла ошибка при запросе к API - {error}')
 
 
 def check_response(response):
@@ -96,9 +94,6 @@ def parse_status(homework):
     """Извлекаем информацию о конкретной.
     домашней работе, статус этой работы.
     """
-    class CustomError(Exception):
-        """Применим кастомные исключения."""
-
     if 'homework_name' not in homework:
         raise KeyError('Отсутствует ключ: homework_name')
     if 'status' not in homework:
@@ -107,7 +102,7 @@ def parse_status(homework):
     homework_status = homework['status']
     if homework_status not in HOMEWORK_VERDICTS:
         logger.error('Cтатус проверки задания не изменился')
-        raise CustomError('Некорректный статус проверки задания')
+        raise IncorrectstatusError('Некорректный статус проверки задания')
     verdict = HOMEWORK_VERDICTS[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
